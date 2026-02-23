@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RankPilot — Free SEO Audit Tool</title>
+    <meta name="description"
+        content="Free instant SEO audit. Enter any URL and get actionable insights on meta tags, headings, content, and technical SEO.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="header" id="header">
+        <div class="container header-inner">
+            <a href="/" class="logo">
+                <span class="logo-diamond">◆</span> RankPilot
+            </a>
+            <span class="header-tagline">Free SEO Audit Tool</span>
+        </div>
+    </header>
+
+    <!-- Ad Banner Top -->
+    <div class="ad-slot ad-slot-top">
+        <div class="container">
+            <div class="ad-placeholder" id="ad-top">
+                <span class="ad-label">Your Ad Here — 728×90 Leaderboard</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container main-layout">
+
+            <!-- LEFT SIDEBAR AD -->
+            <aside class="sidebar sidebar-left">
+                <div class="ad-placeholder ad-sidebar" id="ad-left-1">
+                    <span class="ad-label">Ad — 160×600</span>
+                </div>
+            </aside>
+
+            <!-- CENTER CONTENT -->
+            <div class="center-content">
+
+                <!-- Search Box -->
+                <div class="search-box" id="search-box">
+                    <h1>Check Your Website's SEO</h1>
+                    <p class="search-subtitle">Enter any URL below to get a free, instant SEO audit report.</p>
+                    <div class="search-bar">
+                        <input type="url" id="url-input" class="search-input"
+                            placeholder="Enter website URL (e.g. example.com)" autocomplete="off">
+                        <button id="audit-btn" class="search-btn" onclick="startAudit()">
+                            <span class="btn-text">Analyze</span>
+                            <span class="btn-loader" style="display:none;"><span class="spinner"></span></span>
+                        </button>
+                    </div>
+                    <div id="error-message" class="error-msg" style="display:none;"></div>
+                </div>
+
+
+
+                <!-- Loading State -->
+                <div id="loading-section" style="display:none;">
+                    <!-- Progress Steps -->
+                    <div class="loading-progress">
+                        <p id="loading-url" class="loading-url"></p>
+                        <div class="progress-step" id="step-1">
+                            <div class="step-dot"></div>
+                            <span>Fetching page...</span>
+                        </div>
+                        <div class="progress-step" id="step-2">
+                            <div class="step-dot"></div>
+                            <span>Analyzing meta tags</span>
+                        </div>
+                        <div class="progress-step" id="step-3">
+                            <div class="step-dot"></div>
+                            <span>Checking content & headings</span>
+                        </div>
+                        <div class="progress-step" id="step-4">
+                            <div class="step-dot"></div>
+                            <span>Technical SEO checks</span>
+                        </div>
+                        <div class="progress-step" id="step-5">
+                            <div class="step-dot"></div>
+                            <span>Generating report</span>
+                        </div>
+                    </div>
+
+                    <!-- Skeleton Cards -->
+                    <div class="skeleton-score">
+                        <div class="skeleton-circle shimmer"></div>
+                        <div class="skeleton-lines">
+                            <div class="skeleton-line skeleton-line-lg shimmer"></div>
+                            <div class="skeleton-line skeleton-line-sm shimmer"></div>
+                            <div class="skeleton-badges-row">
+                                <div class="skeleton-badge shimmer"></div>
+                                <div class="skeleton-badge shimmer"></div>
+                                <div class="skeleton-badge shimmer"></div>
+                                <div class="skeleton-badge shimmer"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="skeleton-card shimmer-card">
+                        <div class="skeleton-card-head shimmer"></div>
+                        <div class="skeleton-card-body">
+                            <div class="skeleton-row shimmer"></div>
+                            <div class="skeleton-row shimmer"></div>
+                            <div class="skeleton-row skeleton-row-short shimmer"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-card shimmer-card">
+                        <div class="skeleton-card-head shimmer"></div>
+                        <div class="skeleton-card-body">
+                            <div class="skeleton-row shimmer"></div>
+                            <div class="skeleton-row skeleton-row-short shimmer"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div id="results-section" style="display:none;">
+
+                    <!-- Score Bar -->
+                    <div class="score-bar" id="score-bar">
+                        <div class="score-circle-wrap">
+                            <div class="score-circle" id="score-circle">
+                                <span class="score-number" id="score-number">0</span>
+                                <span class="score-of">/100</span>
+                            </div>
+                        </div>
+                        <div class="score-details">
+                            <h2 id="score-title">SEO Score</h2>
+                            <p id="score-url" class="score-url"></p>
+                            <p id="score-timestamp" class="score-timestamp"></p>
+                            <div class="score-badges" id="score-badges"></div>
+                        </div>
+                        <button class="new-audit-btn" onclick="newAudit()">↻ New Audit</button>
+                    </div>
+
+                    <!-- Results Cards -->
+                    <div class="results-cards">
+
+                        <!-- Meta Tags -->
+                        <div class="card" id="meta-card">
+                            <div class="card-head">
+                                <span class="card-icon card-icon-meta">T</span>
+                                <h3>Meta Tags</h3>
+                                <span class="card-badge" id="meta-score">—</span>
+                            </div>
+                            <div class="card-body" id="meta-results"></div>
+                        </div>
+
+
+
+                        <!-- Headings -->
+                        <div class="card" id="headings-card">
+                            <div class="card-head">
+                                <span class="card-icon card-icon-head">H</span>
+                                <h3>Heading Structure</h3>
+                                <span class="card-badge" id="headings-score">—</span>
+                            </div>
+                            <div class="card-body" id="headings-results"></div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="card" id="content-card">
+                            <div class="card-head">
+                                <span class="card-icon card-icon-content">C</span>
+                                <h3>Content Analysis</h3>
+                                <span class="card-badge" id="content-score">—</span>
+                            </div>
+                            <div class="card-body" id="content-results"></div>
+                        </div>
+
+
+
+                        <!-- Technical -->
+                        <div class="card" id="technical-card">
+                            <div class="card-head">
+                                <span class="card-icon card-icon-tech">&lt;/&gt;</span>
+                                <h3>Technical SEO</h3>
+                                <span class="card-badge" id="technical-score">—</span>
+                            </div>
+                            <div class="card-body" id="technical-results"></div>
+                        </div>
+
+                        <!-- Recommendations -->
+                        <div class="card card-recs" id="recommendations-card">
+                            <div class="card-head">
+                                <span class="card-icon card-icon-fix">!</span>
+                                <h3>Priority Fixes</h3>
+                            </div>
+                            <div class="card-body" id="recommendations-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Export -->
+                    <div class="export-row">
+                        <button class="export-btn" onclick="exportReport()">⬇ Download Report</button>
+                        <button class="new-btn" onclick="newAudit()">↻ Audit Another URL</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT SIDEBAR AD -->
+            <aside class="sidebar sidebar-right">
+                <div class="ad-placeholder ad-sidebar" id="ad-right-1">
+                    <span class="ad-label">Ad — 160×600</span>
+                </div>
+            </aside>
+
+        </div>
+    </main>
+
+    <!-- Ad Banner Bottom -->
+    <div class="ad-slot ad-slot-bottom">
+        <div class="container">
+            <div class="ad-placeholder" id="ad-bottom">
+                <span class="ad-label">Your Ad Here — 728×90 Leaderboard</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-inner">
+            <p>© 2026 RankPilot — Free SEO Audit Tool</p>
+            <div class="footer-links">
+                <a href="#">Privacy</a>
+                <a href="#">Terms</a>
+                <a href="#">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+
+</html>
