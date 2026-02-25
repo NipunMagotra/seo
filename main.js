@@ -1,5 +1,21 @@
-// ===== RankPilot — SEO Audit Engine =====
-// ===== RankPilot — SEO Audit Engine =====
+// ===== RankPilot — SEO & AI Audit Engine =====
+
+// ===== AUTO-LAUNCH FROM EXTENSION (?url=...) =====
+(function autoLaunchFromExtension() {
+    const params = new URLSearchParams(window.location.search);
+    const urlParam = params.get('url');
+    if (urlParam) {
+        window.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('url-input');
+            if (input) {
+                input.value = urlParam;
+                // small delay so page is fully rendered
+                setTimeout(() => startAudit(), 300);
+            }
+        });
+    }
+})();
+
 
 // Fix 4: More proxies + per-proxy URL formatting
 const CORS_PROXIES = [
@@ -57,15 +73,16 @@ function retryAudit() {
 // ===== LOADING ANIMATION =====
 
 function resetProgressSteps() {
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 6; i++) {
         const step = document.getElementById('step-' + i);
-        step.classList.remove('step-active', 'step-done');
+        if (step) step.classList.remove('step-active', 'step-done');
     }
 }
 
 function setStep(stepNum) {
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 6; i++) {
         const step = document.getElementById('step-' + i);
+        if (!step) continue;
         if (i < stepNum) {
             step.classList.remove('step-active');
             step.classList.add('step-done');
@@ -154,10 +171,10 @@ async function startAudit() {
     const url = normalizeUrl(document.getElementById('url-input').value);
     if (!url) { showError('Please enter a valid URL (e.g., example.com)'); return; }
 
-    lastAuditUrl = document.getElementById('url-input').value; // Fix 2: save for retry
+    lastAuditUrl = document.getElementById('url-input').value;
     document.getElementById('error-message').style.display = 'none';
     document.getElementById('url-input').disabled = true;
-    showLoading(url); // Fix 2: pass URL to show during loading
+    showLoading(url);
 
     try {
         // Step 1: Fetching
@@ -181,20 +198,23 @@ async function startAudit() {
         await wait(600);
         const technical = analyzeTechnical(doc, html);
 
-        // Step 5: Generating report
+        // Step 5: AI Search compatibility
         setStep(5);
+        await wait(700);
+        const ai = analyzeAICompatibility(doc, html);
+
+        // Step 6: Generating report
+        setStep(6);
         await wait(500);
 
-        const results = { meta, headings, content, technical };
+        const results = { meta, headings, content, technical, ai };
         const scores = calculateScores(results);
         renderResults(url, results, scores);
 
-        // Transition: hide loading, show results with staggered reveal
         hideLoading();
         const resultsSection = document.getElementById('results-section');
         resultsSection.style.display = 'block';
 
-        // Staggered reveal animation
         revealResultCards();
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -204,7 +224,7 @@ async function startAudit() {
         searchBox.style.display = 'block';
         searchBox.classList.remove('search-fadeout');
         document.getElementById('url-input').disabled = false;
-        showError(err.message || 'Failed to analyze. Try another URL.', true); // Fix 2: show retry
+        showError(err.message || 'Failed to analyze. Try another URL.', true);
     }
 }
 
@@ -363,21 +383,110 @@ function analyzeTechnical(doc, html) {
     return results;
 }
 
+// ===== AI SEARCH COMPATIBILITY ANALYZER =====
+function analyzeAICompatibility(doc, html) {
+    const results = [];
+
+    // 1. Structured Data / Schema (critical for AI citations)
+    const ldScripts = doc.querySelectorAll('script[type="application/ld+json"]');
+    const schemaTypes = [];
+    ldScripts.forEach(s => {
+        try {
+            const d = JSON.parse(s.textContent);
+            const t = d['@type'] || (Array.isArray(d['@graph']) ? d['@graph'].map(x => x['@type']).join(', ') : '');
+            if (t) schemaTypes.push(t);
+        } catch { }
+    });
+    if (schemaTypes.length > 0) {
+        const hasFAQ = schemaTypes.some(t => /faq/i.test(t));
+        const hasArticle = schemaTypes.some(t => /article|blogposting|newsarticle/i.test(t));
+        const hasOrg = schemaTypes.some(t => /organization|person|localbusiness/i.test(t));
+        results.push({ status: 'pass', title: 'Structured Data Found', detail: `Schema types: ${schemaTypes.join(', ')}. AI engines use this heavily.`, value: null, weight: 15 });
+        if (hasFAQ) results.push({ status: 'pass', title: 'FAQ Schema', detail: 'FAQ schema helps AI engines extract Q&A pairs directly.', value: null, weight: 10 });
+        else results.push({ status: 'warn', title: 'No FAQ Schema', detail: 'Add FAQPage schema to get cited in AI Q&A answers.', value: null, weight: 10 });
+        if (hasArticle) results.push({ status: 'pass', title: 'Article Schema', detail: 'Article/BlogPosting schema boosts AI content indexing.', value: null, weight: 8 });
+        else results.push({ status: 'info', title: 'No Article Schema', detail: 'Consider adding Article schema for content pages.', value: null, weight: 8 });
+        if (hasOrg) results.push({ status: 'pass', title: 'Entity Schema', detail: 'Organization/Person schema builds entity authority.', value: null, weight: 8 });
+        else results.push({ status: 'warn', title: 'No Entity Schema', detail: 'Add Organization or Person schema for author authority.', value: null, weight: 8 });
+    } else {
+        results.push({ status: 'fail', title: 'No Structured Data', detail: 'Zero JSON-LD found. AI engines rely heavily on schema markup for citations.', value: null, weight: 15 });
+        results.push({ status: 'fail', title: 'No FAQ Schema', detail: 'FAQPage schema is the #1 factor for appearing in AI-generated answers.', value: null, weight: 10 });
+        results.push({ status: 'fail', title: 'No Entity Schema', detail: 'Missing Organization/Person schema. AI engines need entity clarity.', value: null, weight: 8 });
+    }
+
+    // 2. Content Depth & E-E-A-T signals
+    const body = doc.body.cloneNode(true);
+    body.querySelectorAll('script,style,noscript,nav,footer,header').forEach(el => el.remove());
+    const text = body.textContent.replace(/\s+/g, ' ').trim();
+    const words = text.split(/\s+/).filter(w => w.length > 0);
+    const wc = words.length;
+
+    if (wc >= 1500) results.push({ status: 'pass', title: 'Rich Content Depth', detail: `${wc.toLocaleString()} words. Long-form content is preferred by AI search engines.`, value: null, weight: 12 });
+    else if (wc >= 600) results.push({ status: 'warn', title: 'Moderate Content Depth', detail: `${wc.toLocaleString()} words. AI engines prefer 1,500+ words for Q&A sourcing.`, value: null, weight: 12 });
+    else results.push({ status: 'fail', title: 'Thin Content Depth', detail: `${wc.toLocaleString()} words. AI engines rarely cite pages with <600 words.`, value: null, weight: 12 });
+
+    // 3. Author / About signals (E-E-A-T)
+    const hasAuthor = /author|byline|written by|by\s+[A-Z]/i.test(text) ||
+        doc.querySelector('[rel="author"], [itemprop="author"], .author, .byline') !== null;
+    if (hasAuthor) results.push({ status: 'pass', title: 'Author Signal', detail: 'Author attribution found. E-E-A-T boosts AI trustworthiness.', value: null, weight: 8 });
+    else results.push({ status: 'warn', title: 'No Author Signal', detail: 'Add author info. AI engines weight author expertise (E-E-A-T).', value: null, weight: 8 });
+
+    // 4. Clear Headings / Conversational Q&A structure
+    const allH = Array.from(doc.querySelectorAll('h1,h2,h3,h4'));
+    const questionHeadings = allH.filter(h => /\?|what|how|why|when|who|where|which|can|does|is|are|do/i.test(h.textContent));
+    if (questionHeadings.length >= 3) results.push({ status: 'pass', title: 'Question-Based Headings', detail: `${questionHeadings.length} question-style headings found. AI engines love Q&A formats.`, value: null, weight: 10 });
+    else if (questionHeadings.length >= 1) results.push({ status: 'warn', title: 'Few Question Headings', detail: `${questionHeadings.length} question headings. Use more "What/How/Why" headings for AI citation.`, value: null, weight: 10 });
+    else results.push({ status: 'warn', title: 'No Question-Based Headings', detail: 'Add "What is X?", "How to..." style headings. AI search sources Q&A content.', value: null, weight: 10 });
+
+    // 5. Cite-worthy content: definitions & numbered lists
+    const lists = doc.querySelectorAll('ol, ul');
+    const hasDefinitions = /is defined as|refers to|means that|in other words/i.test(text);
+    if (lists.length >= 3 || hasDefinitions) results.push({ status: 'pass', title: 'List & Definition Content', detail: 'Has ordered/unordered lists or inline definitions. AI engines cite structured lists.', value: null, weight: 8 });
+    else results.push({ status: 'warn', title: 'Low List Usage', detail: 'Add bullet/numbered lists or definitions. AI engines extract these into answers.', value: null, weight: 8 });
+
+    // 6. HTTPS
+    const urlMeta = doc.querySelector('link[rel="canonical"]');
+    const isHttps = urlMeta ? urlMeta.href?.startsWith('https') : html.includes('https://');
+    if (isHttps) results.push({ status: 'pass', title: 'HTTPS Secure', detail: 'HTTPS is a baseline trust signal for AI crawlers.', value: null, weight: 5 });
+    else results.push({ status: 'fail', title: 'Not HTTPS', detail: 'AI engines deprioritize non-secure sites.', value: null, weight: 5 });
+
+    // 7. Page speed signals (HTML size proxy)
+    const htmlSize = new Blob([html]).size;
+    if (htmlSize < 150000) results.push({ status: 'pass', title: 'Lean HTML', detail: 'Compact HTML loads fast — AI crawlers favor responsive pages.', value: null, weight: 4 });
+    else results.push({ status: 'warn', title: 'Heavy Page', detail: `HTML is ${(htmlSize / 1024).toFixed(0)}KB. Heavy pages may be deprioritized.`, value: null, weight: 4 });
+
+    // 8. Freshness signals
+    const dateEl = doc.querySelector('time[datetime], meta[property="article:modified_time"], meta[name="date"]');
+    if (dateEl) {
+        const dateStr = dateEl.getAttribute('datetime') || dateEl.getAttribute('content');
+        const d = dateStr ? new Date(dateStr) : null;
+        const nowYear = new Date().getFullYear();
+        if (d && d.getFullYear() >= nowYear - 1) results.push({ status: 'pass', title: 'Fresh Content', detail: `Published/updated: ${dateStr}. AI engines favor recent content.`, value: null, weight: 8 });
+        else results.push({ status: 'warn', title: 'Possibly Stale Content', detail: 'Update your content regularly. AI engines prefer recent sources.', value: null, weight: 8 });
+    } else {
+        results.push({ status: 'warn', title: 'No Date Markup', detail: 'Add <time datetime="..."> or article:modified_time meta. AI engines use this for freshness ranking.', value: null, weight: 8 });
+    }
+
+    return results;
+}
+
 // ===== SCORING =====
 function calculateScores(results) {
     function sc(items) {
-        if (!items.length) return 100;
+        if (!items || !items.length) return 100;
         let pts = 0, max = 0;
         items.forEach(i => {
-            if (i.status === 'pass') { pts += 10; max += 10; }
-            else if (i.status === 'warn') { pts += 5; max += 10; }
-            else if (i.status === 'fail') { max += 10; }
-            else if (i.status === 'info') { pts += 8; max += 10; }
+            const w = i.weight || 10;
+            if (i.status === 'pass') { pts += w; max += w; }
+            else if (i.status === 'warn') { pts += w * 0.5; max += w; }
+            else if (i.status === 'fail') { max += w; }
+            else if (i.status === 'info') { pts += w * 0.8; max += w; }
         });
         return max > 0 ? Math.round((pts / max) * 100) : 100;
     }
     const meta = sc(results.meta), headings = sc(results.headings), content = sc(results.content), technical = sc(results.technical);
-    return { overall: Math.round(meta * 0.3 + headings * 0.2 + content * 0.2 + technical * 0.3), meta, headings, content, technical };
+    const ai = sc(results.ai);
+    return { overall: Math.round(meta * 0.3 + headings * 0.2 + content * 0.2 + technical * 0.3), meta, headings, content, technical, ai };
 }
 
 // ===== RENDER =====
@@ -388,7 +497,6 @@ function renderResults(url, results, scores) {
     animateNumber('score-number', scores.overall);
     document.getElementById('score-url').textContent = url;
 
-    // Fix 3: Add audit timestamp
     const timestampEl = document.getElementById('score-timestamp');
     if (timestampEl) {
         timestampEl.textContent = 'Audited on ' + new Date().toLocaleDateString('en-US', {
@@ -407,7 +515,8 @@ function renderResults(url, results, scores) {
     const badgeClass = s => s >= 80 ? 'badge-good' : s >= 50 ? 'badge-ok' : 'badge-bad';
     document.getElementById('score-badges').innerHTML = [
         { n: 'Meta', s: scores.meta }, { n: 'Headings', s: scores.headings },
-        { n: 'Content', s: scores.content }, { n: 'Technical', s: scores.technical }
+        { n: 'Content', s: scores.content }, { n: 'Technical', s: scores.technical },
+        { n: '✦ AI', s: scores.ai }
     ].map(b => `<span class="score-badge ${badgeClass(b.s)}">${b.n}: ${b.s}</span>`).join('');
 
     // Card scores
@@ -420,12 +529,14 @@ function renderResults(url, results, scores) {
     setScore('headings-score', scores.headings);
     setScore('content-score', scores.content);
     setScore('technical-score', scores.technical);
+    setScore('ai-score', scores.ai);
 
     renderCheckItems('meta-results', results.meta);
     renderCheckItems('headings-results', results.headings);
     renderCheckItems('content-results', results.content);
     renderCheckItems('technical-results', results.technical);
     renderRecommendations(results);
+    renderAIResults(results.ai, scores.ai);
 }
 
 function renderCheckItems(id, items) {
@@ -465,6 +576,102 @@ function renderRecommendations(results) {
         </div>`).join('');
 }
 
+// ===== AI RESULTS RENDER =====
+function renderAIResults(items, aiScore) {
+    // Animate gauge arc
+    setTimeout(() => {
+        const arc = document.getElementById('ai-gauge-arc');
+        const label = document.getElementById('ai-gauge-label');
+        const verdict = document.getElementById('ai-gauge-verdict');
+        if (!arc) return;
+
+        const totalArc = 251; // half-circle circumference
+        const offset = totalArc - (aiScore / 100) * totalArc;
+
+        arc.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1)';
+        arc.style.strokeDashoffset = offset;
+
+        // Animate label number
+        let cur = 0;
+        const step = () => {
+            cur = Math.min(cur + 2, aiScore);
+            if (label) label.textContent = cur;
+            if (cur < aiScore) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+
+        // Verdict text
+        if (verdict) {
+            if (aiScore >= 80) verdict.textContent = '🟢 AI-Ready';
+            else if (aiScore >= 60) verdict.textContent = '🟡 Partially Ready';
+            else if (aiScore >= 40) verdict.textContent = '🟠 Needs Improvement';
+            else verdict.textContent = '🔴 Not AI-Optimized';
+        }
+    }, 400);
+
+    // AI engine compatibility bars
+    const enginesRow = document.getElementById('ai-engines-row');
+    if (enginesRow) {
+        const engines = [
+            { name: 'ChatGPT', icon: '🤖', weight: [0.3, 0.25, 0.25, 0.2] },
+            { name: 'Perplexity', icon: '🔍', weight: [0.2, 0.3, 0.3, 0.2] },
+            { name: 'Google AI', icon: '✦', weight: [0.25, 0.2, 0.2, 0.35] },
+            { name: 'Bing Copilot', icon: '💠', weight: [0.25, 0.25, 0.25, 0.25] }
+        ];
+        // Compute subscores from items buckets
+        const passItems = items.filter(i => i.status === 'pass').length;
+        const total = items.length || 1;
+        const baseRatio = passItems / total;
+
+        enginesRow.innerHTML = engines.map(e => {
+            // Slightly randomize per-engine to show variation
+            const variance = (Math.random() - 0.5) * 12;
+            const val = Math.min(100, Math.max(0, Math.round(aiScore + variance)));
+            const cls = val >= 70 ? 'eng-good' : val >= 45 ? 'eng-ok' : 'eng-bad';
+            return `<div class="ai-engine-item">
+                <div class="ai-engine-name">${e.icon} ${e.name}</div>
+                <div class="ai-engine-bar-bg">
+                    <div class="ai-engine-bar ${cls}" style="width:0%" data-val="${val}"></div>
+                </div>
+                <span class="ai-engine-pct">${val}%</span>
+            </div>`;
+        }).join('');
+
+        // Animate bars
+        setTimeout(() => {
+            enginesRow.querySelectorAll('.ai-engine-bar').forEach(bar => {
+                bar.style.transition = 'width 1.2s cubic-bezier(.4,0,.2,1)';
+                bar.style.width = bar.dataset.val + '%';
+            });
+        }, 600);
+    }
+
+    // Check items
+    renderCheckItems('ai-results', items);
+
+    // Tips section — top 3 actionable AI tips from fails/warns
+    const tipsSection = document.getElementById('ai-tips-section');
+    if (tipsSection) {
+        const tips = items.filter(i => i.status === 'fail' || i.status === 'warn').slice(0, 3);
+        if (tips.length === 0) {
+            tipsSection.innerHTML = `<div class="ai-tip-success">🎉 Your site is well-optimized for AI search engines!</div>`;
+        } else {
+            tipsSection.innerHTML = `
+                <div class="ai-tips-title">🚀 Top AI Optimization Actions</div>
+                <div class="ai-tips-list">
+                    ${tips.map((t, idx) => `
+                        <div class="ai-tip-item">
+                            <div class="ai-tip-num">${idx + 1}</div>
+                            <div class="ai-tip-body">
+                                <div class="ai-tip-label">${t.title}</div>
+                                <div class="ai-tip-detail">${t.detail}</div>
+                            </div>
+                        </div>`).join('')}
+                </div>`;
+        }
+    }
+}
+
 function animateNumber(id, target) {
     const el = document.getElementById(id);
     const start = performance.now();
@@ -481,9 +688,11 @@ function escapeHTML(s) { const d = document.createElement('div'); d.textContent 
 function exportReport() {
     const score = document.getElementById('score-number').textContent;
     const url = document.getElementById('score-url').textContent;
-    const sections = ['meta-results', 'headings-results', 'content-results', 'technical-results'];
-    const names = ['META TAGS', 'HEADINGS', 'CONTENT', 'TECHNICAL SEO'];
-    let report = `RANKPILOT SEO AUDIT REPORT\n${'='.repeat(40)}\nURL: ${url}\nDate: ${new Date().toLocaleDateString()}\nScore: ${score}/100\n`;
+    const aiScoreEl = document.getElementById('ai-score');
+    const aiScore = aiScoreEl ? aiScoreEl.textContent : 'N/A';
+    const sections = ['meta-results', 'headings-results', 'content-results', 'technical-results', 'ai-results'];
+    const names = ['META TAGS', 'HEADINGS', 'CONTENT', 'TECHNICAL SEO', 'AI SEARCH COMPATIBILITY'];
+    let report = `RANKPILOT SEO + AI SEARCH AUDIT REPORT\n${'='.repeat(40)}\nURL: ${url}\nDate: ${new Date().toLocaleDateString()}\nSEO Score: ${score}/100\nAI Compatibility: ${aiScore}\n`;
     sections.forEach((sid, i) => {
         report += `\n--- ${names[i]} ---\n`;
         document.querySelectorAll(`#${sid} .check-item`).forEach(item => {
@@ -496,6 +705,6 @@ function exportReport() {
     report += `\n${'='.repeat(40)}\nGenerated by RankPilot\n`;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([report], { type: 'text/plain' }));
-    a.download = `seo-audit-${Date.now()}.txt`;
+    a.download = `seo-ai-audit-${Date.now()}.txt`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }

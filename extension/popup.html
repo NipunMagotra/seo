@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RankPilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <span class="logo-diamond">◆</span>
+            <span class="logo-text">RankPilot</span>
+        </div>
+        <span class="header-badge">SEO + AI</span>
+    </header>
+
+    <!-- URL Display -->
+    <div class="url-bar" id="url-bar">
+        <span class="url-icon">🔗</span>
+        <span class="url-text" id="url-text">Loading...</span>
+    </div>
+
+    <!-- Scanning State -->
+    <div id="scanning-state">
+        <div class="scan-anim">
+            <div class="scan-ring"></div>
+            <div class="scan-inner">
+                <span class="scan-icon">◆</span>
+            </div>
+        </div>
+        <p class="scan-label" id="scan-label">Scanning page...</p>
+        <div class="scan-steps" id="scan-steps">
+            <div class="scan-step" id="ss-1"><span class="ss-dot"></span> Fetching HTML</div>
+            <div class="scan-step" id="ss-2"><span class="ss-dot"></span> Analyzing SEO</div>
+            <div class="scan-step" id="ss-3"><span class="ss-dot"></span> AI Compatibility</div>
+            <div class="scan-step" id="ss-4"><span class="ss-dot"></span> Generating scores</div>
+        </div>
+    </div>
+
+    <!-- Results State -->
+    <div id="results-state" style="display:none">
+
+        <!-- Score Row -->
+        <div class="scores-row">
+            <div class="score-pill" id="seo-pill">
+                <div class="pill-ring" id="seo-ring">
+                    <svg class="ring-svg" viewBox="0 0 60 60">
+                        <circle class="ring-track" cx="30" cy="30" r="24" />
+                        <circle class="ring-fill" id="seo-circle-fill" cx="30" cy="30" r="24" stroke-dasharray="150.8"
+                            stroke-dashoffset="150.8" />
+                    </svg>
+                    <div class="ring-inner">
+                        <span class="ring-num" id="seo-num">0</span>
+                    </div>
+                </div>
+                <div class="pill-label">SEO Score</div>
+                <div class="pill-grade" id="seo-grade">—</div>
+            </div>
+
+            <div class="score-divider"></div>
+
+            <div class="score-pill" id="ai-pill">
+                <div class="pill-ring ai-ring-wrap" id="ai-ring">
+                    <svg class="ring-svg" viewBox="0 0 60 60">
+                        <circle class="ring-track" cx="30" cy="30" r="24" />
+                        <circle class="ring-fill ai-fill" id="ai-circle-fill" cx="30" cy="30" r="24"
+                            stroke-dasharray="150.8" stroke-dashoffset="150.8" />
+                    </svg>
+                    <div class="ring-inner">
+                        <span class="ring-num" id="ai-num">0</span>
+                    </div>
+                </div>
+                <div class="pill-label">AI Score</div>
+                <div class="pill-grade ai-grade" id="ai-grade">—</div>
+            </div>
+        </div>
+
+        <!-- Quick Badges -->
+        <div class="quick-badges" id="quick-badges"></div>
+
+        <!-- Mini checks -->
+        <div class="mini-checks" id="mini-checks"></div>
+
+        <!-- Full Detail Button -->
+        <button class="full-detail-btn" id="full-detail-btn">
+            <span>View Full Report</span>
+            <span class="btn-arrow">→</span>
+        </button>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" style="display:none">
+        <div class="error-icon">⚠</div>
+        <p class="error-msg" id="error-msg">Could not analyze this page.</p>
+        <button class="retry-btn" id="retry-btn">↻ Try Again</button>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>
