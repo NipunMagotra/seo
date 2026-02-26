@@ -95,36 +95,10 @@ button {
     font-size: 1.1rem;
 }
 
-.header-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
 .header-tagline {
     font-size: 0.8rem;
     color: var(--text-muted);
     font-weight: 500;
-}
-
-.install-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--blue-light);
-    color: var(--blue);
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: 1px solid rgba(37, 99, 235, 0.2);
-    transition: all 0.2s;
-}
-
-.install-btn:hover {
-    background: var(--blue);
-    color: white;
-    border-color: var(--blue);
 }
 
 /* ===== AD SLOTS ===== */
